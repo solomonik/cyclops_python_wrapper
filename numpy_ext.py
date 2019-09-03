@@ -162,14 +162,14 @@ def astensor(A):
 def einsvd(einstr, A, rank=None, threshold=None, size_limit=None, criterion=None, mult_s=True):
     """
     Perform Singular Value Decomposition according to the specified Einstein notation string. 
-    Will always preserve at least one singular value during truncation.
+    Will always preserve at least one singular value during the truncation.
 
     Parameters
     ----------
     einstr: str
         A string of Einstein notations in the form of 'idxofA->idxofU,idxofV'. There must be one and only one contraction index.
 
-    A: tensor like
+    A: tensor_like
         The tensor to be decomposed. Should be of order 2 or more.
 
     rank: int or None, optional
@@ -189,6 +189,17 @@ def einsvd(einstr, A, rank=None, threshold=None, size_limit=None, criterion=None
 
     mult_s: bool, optional
         Whether or not to multiply U and V by S**0.5 to decompose A into two tensors instead of three. True by default.
+
+    Returns
+    -------
+    u: tensor_like
+        A unitary tensor with indices ordered by the Einstein notation string.
+
+    s: 1d tensor_like
+        A 1d tensor containing singular values sorted in descending order.
+
+    v: tensor_like
+        A unitary tensor with indices ordered by the Einstein notation string.
     """
     str_a, str_uv = einstr.replace(' ', '').split('->')
     str_u, str_v = str_uv.split(',')
@@ -199,10 +210,12 @@ def einsvd(einstr, A, rank=None, threshold=None, size_limit=None, criterion=None
     rank = rank or len(s)
 
     if size_limit is not None:
-        if isinstance(size_limit, int):
+        if np.isscalar(size_limit):
             size_limit = (size_limit, size_limit)
-        rank = min(rank, int(size_limit[0] / u.shape[0]))
-        rank = min(rank, int(size_limit[1] / vh.shape[1]))
+        if size_limit[0] is not None:
+            rank = min(rank, int(size_limit[0] / u.shape[0]) or 1)
+        if size_limit[1] is not None:
+            rank = min(rank, int(size_limit[1] / vh.shape[1]) or 1)
 
     if threshold is not None:
         # will always preserve at least one singular value
@@ -211,7 +224,7 @@ def einsvd(einstr, A, rank=None, threshold=None, size_limit=None, criterion=None
         else:
             threshold = threshold * la.norm(s, criterion)
             for i in range(rank, 0, -1):
-                if la.norm(s[i:], criterion) >= threshold:
+                if la.norm(s[i-1:], criterion) >= threshold:
                     rank = i
                     break;
 
